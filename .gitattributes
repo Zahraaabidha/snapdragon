@@ -1,0 +1,9 @@
+# Normalize line endings: LF in the repository for all text files, so the core
+# and its tests behave identically on Windows (incl. ARM64) and on Linux CI.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.onnx binary

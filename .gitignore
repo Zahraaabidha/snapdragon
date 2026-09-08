@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local config / runtime artifacts (never commit real policy secrets or audit logs)
+*.local.toml
+*.local.json
+/audit/
+/runtime/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Internal engineering documentation — kept on disk locally, never published.
+# The public repository (github.com/Zahraaabidha/snapdragon) ships only the
+# root README.md. These files remain available to local development.
+/CLAUDE.md
+/ARCHITECTURE.md
+/PROJECT_SPEC.md
+/THREAT_MODEL.md
+/DEVELOPMENT.md
+/SECURITY.md
+/docs/DECISIONS.md
+/docs/README.md
+/tests/README.md

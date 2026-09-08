@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "contextfence"
+version = "0.0.0"
+description = "A privacy-first, on-device security boundary for AI-enabled Windows PCs."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "UNLICENSED" }
+
+# Runtime dependencies are intentionally empty. They are added phase by phase per
+# DEVELOPMENT.md, standard library first. Phase 1 (security models + event
+# gateway) needs nothing beyond the stdlib. PySide6 will be a UI-only optional
+# extra; inference backends will be optional extras isolated to
+# src/contextfence/inference/. The security core must not depend on the UI
+# framework or any inference-vendor SDK.
+dependencies = []
+
+[project.optional-dependencies]
+# Development/test tooling only. Not imported by the package, not shipped in the
+# wheel. Introduced in Phase 1 per DEVELOPMENT.md §1, §4:
+#   pytest - the test runner named in CLAUDE.md §15.
+#   mypy   - "code should pass a strict type check" (DEVELOPMENT.md §4).
+#   ruff   - formatting + linting config "added in Phase 1" (DEVELOPMENT.md §4).
+dev = [
+  "pytest>=8,<9",
+  "mypy>=1.11,<2",
+  "ruff>=0.6,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/contextfence"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+mypy_path = "src"
+namespace_packages = true
+explicit_package_bases = true
+# `strict` is the bar DEVELOPMENT.md §4 sets. The extra "redundant-expr" /
+# "truthy-bool" / "warn_unreachable" checks are deliberately *not* enabled: the
+# core models are a trust boundary that defensively re-checks the runtime type
+# of fields whose static annotation a caller could bypass (Any, an ignored
+# error, an untyped adapter). Those runtime guards read as "redundant" to a
+# purely static view but are load-bearing here.
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
