@@ -20,6 +20,7 @@ from __future__ import annotations
 from enum import StrEnum
 
 __all__ = [
+    "SEVERITY_ORDER",
     "ActionType",
     "DataClassification",
     "DecisionOutcome",
@@ -27,6 +28,7 @@ __all__ = [
     "EvidenceSource",
     "ResourceType",
     "Severity",
+    "severity_rank",
 ]
 
 
@@ -44,6 +46,35 @@ class Severity(StrEnum):
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
+
+
+SEVERITY_ORDER: tuple[Severity, ...] = (
+    Severity.LOW,
+    Severity.MEDIUM,
+    Severity.HIGH,
+    Severity.CRITICAL,
+)
+"""``Severity`` members in ascending order of impact -- the single source of
+truth for "which severity is higher".
+
+This is an *ordering over enum members*, not a numeric risk score: the positions
+are never summed, weighted, averaged, or combined with confidence. Consumers use
+it only to pick the more/most severe member (Risk Aggregator, Phase 3; Policy
+Engine, Phase 4)."""
+
+_SEVERITY_RANK: dict[Severity, int] = {
+    severity: index for index, severity in enumerate(SEVERITY_ORDER)
+}
+
+
+def severity_rank(severity: Severity) -> int:
+    """Return the ordinal position of ``severity`` in :data:`SEVERITY_ORDER`.
+
+    ``LOW`` -> 0 .. ``CRITICAL`` -> 3. Use only for comparing two severities,
+    never as a score.
+    """
+
+    return _SEVERITY_RANK[severity]
 
 
 class DecisionOutcome(StrEnum):
