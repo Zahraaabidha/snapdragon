@@ -37,7 +37,7 @@ _SENSITIVE_CLASSIFICATIONS = frozenset(
         DataClassification.SECRET,
     }
 )
-_ALL_EVIDENCE_CATEGORIES = frozenset(EvidenceCategory)
+_ALL_EVIDENCE_CATEGORIES: frozenset[EvidenceCategory] = frozenset(EvidenceCategory)
 _DANGEROUS_ACTIONS = frozenset(
     {ActionType.COMMAND_EXEC, ActionType.FILE_DELETE, ActionType.NETWORK_SEND}
 )

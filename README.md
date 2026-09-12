@@ -131,15 +131,27 @@ See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full scope statement and
 
 ## Current development status
 
-**Stage: documentation and engineering contract.**
+**Implemented:** the framework-agnostic security core — canonical
+`SecurityEvent` / `Evidence` / `RiskView` / `Decision` models and the Event
+Gateway; deterministic detectors (secrets, PII, destination, capability); risk
+aggregation; the deterministic Policy Engine and default policy; enforcement
+(allow / deny / approval / sanitize); the privacy-preserving, tamper-evident
+audit log; the provider-independent AI-adapter boundary with **Claude Code as
+the first reference adapter**; and the generic security pipeline that wires
+these together. See [docs/ADAPTERS.md](docs/ADAPTERS.md).
 
-This repository currently contains the project documentation and a minimal
-skeleton only. The security engine, adapter, semantic analyzer, and UI are
-**not implemented yet**. Implementation proceeds in the phased order described in
-[DEVELOPMENT.md](DEVELOPMENT.md).
+**Not implemented yet:** the semantic analyzer and inference backends (CPU and
+Snapdragon/NPU), the evaluation/benchmark suite, and the desktop UI.
 
-Nothing in this repository should be read as a description of shipped,
-validated behavior.
+**Adapter limitation:** ContextFence does **not** currently intercept live
+Claude Code activity. The Claude Code adapter translates a structured
+native-event boundary; wiring a real event source is future work. There is no
+OS-wide or kernel-level enforcement. NPU execution has not been validated and no
+benchmark numbers exist.
+
+Implementation proceeds in the phased order described in
+[DEVELOPMENT.md](DEVELOPMENT.md). Nothing here should be read as a description of
+shipped, independently validated behavior.
 
 ---
 
@@ -162,8 +174,8 @@ PROJECT_SPEC.md      product specification and scope
 THREAT_MODEL.md      assets, threats, mitigations, residual risk
 DEVELOPMENT.md       methodology, phases, testing, benchmarking
 SECURITY.md          security invariants and handling rules
-src/contextfence/    package root (skeleton only at this stage)
-tests/               test root (skeleton only at this stage)
+src/contextfence/    security core, adapters, and pipeline (Phases 1-7)
+tests/               unit + integration tests
 docs/                supplementary documentation
 ```
 
