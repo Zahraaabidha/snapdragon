@@ -137,11 +137,15 @@ Gateway; deterministic detectors (secrets, PII, destination, capability); risk
 aggregation; the deterministic Policy Engine and default policy; enforcement
 (allow / deny / approval / sanitize); the privacy-preserving, tamper-evident
 audit log; the provider-independent AI-adapter boundary with **Claude Code as
-the first reference adapter**; and the generic security pipeline that wires
-these together. See [docs/ADAPTERS.md](docs/ADAPTERS.md).
+the first reference adapter**; the generic security pipeline that wires these
+together; and a semantic-analysis **contract** — `SemanticAnalyzer` plus a
+model-independent `InferenceProvider` interface with a strictly validated
+result schema. See [docs/ADAPTERS.md](docs/ADAPTERS.md).
 
-**Not implemented yet:** the semantic analyzer and inference backends (CPU and
-Snapdragon/NPU), the evaluation/benchmark suite, and the desktop UI.
+**Not implemented yet:** any concrete inference backend (no real ML model runs
+yet — Phase 8 ships the semantic-analysis contract only, exercised in tests by
+a deterministic fake provider; CPU and Snapdragon/NPU backends are Phase 9/10),
+the evaluation/benchmark suite, and the desktop UI.
 
 **Adapter limitation:** ContextFence does **not** currently intercept live
 Claude Code activity. The Claude Code adapter translates a structured
@@ -174,7 +178,7 @@ PROJECT_SPEC.md      product specification and scope
 THREAT_MODEL.md      assets, threats, mitigations, residual risk
 DEVELOPMENT.md       methodology, phases, testing, benchmarking
 SECURITY.md          security invariants and handling rules
-src/contextfence/    security core, adapters, and pipeline (Phases 1-7)
+src/contextfence/    security core, adapters, pipeline, semantic contract (Phases 1-8)
 tests/               unit + integration tests
 docs/                supplementary documentation
 ```

@@ -10,7 +10,10 @@ change that quietly couples the core to an adapter fails a test:
 * the concrete adapters depend on the generic contract, never the reverse;
 * an adapter module constructs no ``Decision`` and never touches ``PolicyConfig``
   or the ``EnforcementGate``;
-* no Phase 8+ code (inference, semantic analyzer, Snapdragon/NPU, UI) exists yet.
+* no Phase 9+ code exists yet: no concrete inference backend
+  (``inference/cpu``, ``inference/snapdragon``) and no UI. Phase 8's semantic
+  analyzer and the model-independent ``InferenceProvider`` *contract* do exist
+  -- see ``tests/unit/test_semantic_architecture.py`` for their own guards.
 """
 
 from __future__ import annotations
@@ -153,17 +156,24 @@ def test_no_adapter_or_pipeline_module_does_process_or_network_io() -> None:
     assert offenders == []
 
 
-# -- no Phase 8+ implementation exists ----------------------------------
+# -- no Phase 9+ implementation exists -----------------------------------
 
 
-def test_no_inference_semantic_ui_or_npu_packages_exist() -> None:
+def test_no_ui_or_concrete_inference_backend_packages_exist() -> None:
+    """Phase 8 adds the semantic analyzer + ``InferenceProvider`` contract only.
+
+    Concrete inference backends (Phase 9 CPU, Phase 10 Snapdragon/NPU) and the
+    desktop UI (Phase 12) must not exist yet.
+    """
+
     for missing in (
-        "contextfence.inference",
+        "contextfence.inference.cpu",
+        "contextfence.inference.snapdragon",
         "contextfence.ui",
-        "contextfence.analysis.semantic",
     ):
         assert importlib.util.find_spec(missing) is None, f"unexpected: {missing}"
-    assert not (_SRC / "inference").exists()
+    assert not (_SRC / "inference" / "cpu").exists()
+    assert not (_SRC / "inference" / "snapdragon").exists()
     assert not (_SRC / "ui").exists()
 
 

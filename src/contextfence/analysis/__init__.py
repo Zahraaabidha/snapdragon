@@ -1,14 +1,20 @@
-"""Deterministic security analysis (Phase 2).
+"""Deterministic security analysis (Phase 2), plus optional semantic analysis
+(Phase 8, :mod:`contextfence.analysis.semantic`).
 
 This package consumes a validated
 :class:`~contextfence.core.models.event.SecurityEvent` and produces
 :class:`~contextfence.core.models.evidence.Evidence`. It is *evidence generation
 only*: no risk aggregation (Phase 3), no policy evaluation (Phase 4), no
-enforcement, no audit, no semantic inference, and no I/O.
+enforcement, no audit, and no I/O.
 
-Nothing here imports the Policy Engine, enforcement, audit, adapters, the UI, or
-any inference / vendor code -- and nothing here returns a
-:class:`~contextfence.core.models.decision.Decision`.
+The deterministic detectors exported below (and this module itself) import
+neither the Policy Engine, enforcement, audit, adapters, the UI, nor any
+inference / vendor code -- and nothing here returns a
+:class:`~contextfence.core.models.decision.Decision`. The one deliberate
+exception is the :mod:`contextfence.analysis.semantic` subpackage: it is the
+sole bridge to :mod:`contextfence.inference` (the model-independent
+``InferenceProvider`` abstraction), imported explicitly and never bundled into
+:data:`DEFAULT_DETECTORS` (docs/DECISIONS.md D-0004).
 """
 
 from __future__ import annotations

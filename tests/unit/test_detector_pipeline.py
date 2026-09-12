@@ -38,8 +38,16 @@ _FORBIDDEN_IMPORT_FRAGMENTS = (
     "contextfence.audit",
     "contextfence.ui",
     "contextfence.adapters",
-    "contextfence.inference",
 )
+
+#: contextfence.inference is forbidden everywhere in ``analysis/`` *except*
+#: ``analysis/semantic/`` (Phase 8): that subpackage is the sole, deliberate
+#: bridge to the model-independent InferenceProvider abstraction
+#: (docs/DECISIONS.md D-0004). The deterministic detectors this module
+#: otherwise covers -- secrets, pii, destination, capability, detector,
+#: redaction -- must still never import it.
+_INFERENCE_FRAGMENT = "contextfence.inference"
+_INFERENCE_ALLOWED_SUBPACKAGE = "semantic"
 
 
 # --- happy path ----------------------------------------------------------------
@@ -154,6 +162,9 @@ def test_all_analysis_modules_import_cleanly() -> None:
 def test_analysis_has_no_policy_enforcement_ui_or_vendor_imports() -> None:
     offenders: list[str] = []
     for path in _ANALYSIS_DIR.rglob("*.py"):
+        in_semantic = (
+            _INFERENCE_ALLOWED_SUBPACKAGE in path.relative_to(_ANALYSIS_DIR).parts
+        )
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             mods: list[str] = []
@@ -162,7 +173,29 @@ def test_analysis_has_no_policy_enforcement_ui_or_vendor_imports() -> None:
             elif isinstance(node, ast.ImportFrom) and node.module:
                 mods = [node.module]
             for mod in mods:
-                if any(frag in mod for frag in _FORBIDDEN_IMPORT_FRAGMENTS):
+                if in_semantic and mod.startswith(_INFERENCE_FRAGMENT):
+                    continue
+                if mod.startswith(_INFERENCE_FRAGMENT) or any(
+                    frag in mod for frag in _FORBIDDEN_IMPORT_FRAGMENTS
+                ):
+                    offenders.append(f"{path.name}: {mod}")
+    assert offenders == []
+
+
+def test_only_the_semantic_subpackage_imports_inference() -> None:
+    offenders: list[str] = []
+    for path in _ANALYSIS_DIR.rglob("*.py"):
+        if _INFERENCE_ALLOWED_SUBPACKAGE in path.relative_to(_ANALYSIS_DIR).parts:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            mods: list[str] = []
+            if isinstance(node, ast.Import):
+                mods = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                mods = [node.module]
+            for mod in mods:
+                if mod.startswith(_INFERENCE_FRAGMENT):
                     offenders.append(f"{path.name}: {mod}")
     assert offenders == []
 

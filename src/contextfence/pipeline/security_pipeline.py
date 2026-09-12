@@ -1,9 +1,11 @@
-"""The generic, provider-independent security pipeline (Phase 7, task Part H).
+"""The generic, provider-independent security pipeline (Phase 7 Part H; Phase 8
+semantic integration).
 
-``SecurityPipeline`` wires the Phase 1-6 components together in the one order the
-architecture mandates::
+``SecurityPipeline`` wires the security-core components together in the one
+order the architecture mandates::
 
-    SecurityEvent -> analysis -> risk -> policy -> enforcement -> audit
+    SecurityEvent -> deterministic analysis -> semantic analysis
+                   -> risk -> policy -> enforcement -> audit
 
 It knows nothing about any AI application. It does not import
 :mod:`contextfence.adapters`, has no ``ClaudeCodeAdapter`` reference, and
@@ -11,6 +13,20 @@ contains no ``if adapter == ...`` branch. Its input is a canonical
 :class:`~contextfence.core.models.event.SecurityEvent` (or an untrusted raw
 mapping, which it admits through the :class:`EventGateway` first). Whichever
 adapter produced the event, the pipeline behaves identically.
+
+Semantic integration (Phase 8) adds no provider-specific branch either: a
+:class:`~contextfence.analysis.semantic.SemanticAnalyzer` satisfies the same
+:class:`~contextfence.analysis.detector.Detector` protocol the deterministic
+detectors do, so it runs through the same
+:func:`~contextfence.analysis.detector.run_detectors` safety net. When no
+``semantic_analyzer`` is configured (the default), behaviour is byte-for-byte
+identical to Phase 7 -- every Phase 1-7 regression test keeps passing unchanged.
+When one is configured, its findings become ``Evidence`` exactly like a
+deterministic detector's, *and* are carried on the event's own
+``semantic_signals`` (rebuilding the event via ``dataclasses.replace``, the only
+place a ``SecurityEvent`` is ever "modified") so the Policy Engine's
+analysis-error and semantic-unavailable rules see them the way they were always
+designed to (docs/DECISIONS.md D-0004).
 
 Every stage here already fails closed on its own (``run_detectors`` emits an
 analysis-error marker instead of swallowing a detector fault; the Policy Engine
@@ -24,16 +40,19 @@ alters the decision or the enforcement result (SECURITY.md §1.9; ARCHITECTURE.m
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Mapping, Sequence
 
 from contextfence.analysis import DEFAULT_DETECTORS
 from contextfence.analysis.detector import Detector, run_detectors
+from contextfence.analysis.semantic import SemanticAnalyzer
 from contextfence.audit.record import build_audit_body
 from contextfence.audit.sink import AppendResult, AuditSink
 from contextfence.core.events.gateway import EventGateway
 from contextfence.core.models.decision import Decision
 from contextfence.core.models.event import SecurityEvent
+from contextfence.core.models.evidence import Evidence
 from contextfence.core.models.risk import RiskView
 from contextfence.core.risk.aggregator import aggregate_evidence
 from contextfence.enforcement.approval import ApprovalResponse
@@ -50,13 +69,21 @@ _log = logging.getLogger("contextfence.pipeline")
 class SecurityPipeline:
     """Deterministic orchestration: analysis, risk, policy, enforcement, audit."""
 
-    __slots__ = ("_audit_sink", "_detectors", "_gate", "_gateway", "_policy_engine")
+    __slots__ = (
+        "_audit_sink",
+        "_detectors",
+        "_gate",
+        "_gateway",
+        "_policy_engine",
+        "_semantic_analyzer",
+    )
 
     def __init__(
         self,
         *,
         policy_engine: PolicyEngine,
         detectors: Sequence[Detector] = DEFAULT_DETECTORS,
+        semantic_analyzer: SemanticAnalyzer | None = None,
         enforcement_gate: EnforcementGate = DEFAULT_GATE,
         audit_sink: AuditSink | None = None,
         event_gateway: EventGateway | None = None,
@@ -65,8 +92,13 @@ class SecurityPipeline:
             raise TypeError("policy_engine must be a PolicyEngine")
         if not isinstance(enforcement_gate, EnforcementGate):
             raise TypeError("enforcement_gate must be an EnforcementGate")
+        if semantic_analyzer is not None and not isinstance(
+            semantic_analyzer, SemanticAnalyzer
+        ):
+            raise TypeError("semantic_analyzer must be a SemanticAnalyzer or None")
         self._policy_engine = policy_engine
         self._detectors = tuple(detectors)
+        self._semantic_analyzer = semantic_analyzer
         self._gate = enforcement_gate
         self._audit_sink = audit_sink
         self._gateway = event_gateway if event_gateway is not None else EventGateway()
@@ -129,11 +161,24 @@ class SecurityPipeline:
             raise TypeError("process() requires a canonical SecurityEvent")
 
         evidence = run_detectors(event, self._detectors)
-        risk_view = aggregate_evidence(evidence)
-        decision = self._policy_engine.evaluate(event, evidence, risk_view)
+        semantic_evidence = self._run_semantic_analysis(event)
+        all_evidence = (*evidence, *semantic_evidence)
+        risk_view = aggregate_evidence(all_evidence)
+
+        # The event the rest of the pipeline sees carries its own semantic
+        # findings, per SecurityEvent's documented purpose for that field
+        # (core/models/event.py). SecurityEvent is frozen, so this is a fresh,
+        # independently re-validated instance -- never a mutation.
+        policy_event = (
+            event
+            if not semantic_evidence
+            else dataclasses.replace(event, semantic_signals=semantic_evidence)
+        )
+
+        decision = self._policy_engine.evaluate(policy_event, evidence, risk_view)
         enforcement = self._gate.enforce(
             decision,
-            event=event,
+            event=policy_event,
             risk_view=risk_view,
             evidence=evidence,
             payload=payload,
@@ -141,7 +186,7 @@ class SecurityPipeline:
         )
 
         audit_append = self._record_audit(
-            event=event,
+            event=policy_event,
             risk_view=risk_view,
             decision=decision,
             enforcement=enforcement,
@@ -150,13 +195,27 @@ class SecurityPipeline:
         )
 
         return PipelineResult(
-            event=event,
-            evidence=evidence,
+            event=policy_event,
+            evidence=all_evidence,
             risk_view=risk_view,
             decision=decision,
             enforcement=enforcement,
             audit_append=audit_append,
         )
+
+    def _run_semantic_analysis(self, event: SecurityEvent) -> tuple[Evidence, ...]:
+        """Run the optional semantic analyzer through the same safety net.
+
+        Returns ``()`` when no analyzer is configured -- identical to Phase 7.
+        When one is configured, this is just another ``run_detectors`` call: a
+        provider failure becomes a ``SEMANTIC.ANALYSIS_ERROR`` marker exactly the
+        way a deterministic detector failure becomes e.g. a ``SECRET.ANALYSIS_ERROR``
+        one. No separate try/except, no provider-specific branch.
+        """
+
+        if self._semantic_analyzer is None:
+            return ()
+        return run_detectors(event, (self._semantic_analyzer,))
 
     def _record_audit(
         self,

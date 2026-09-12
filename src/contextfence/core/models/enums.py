@@ -117,6 +117,13 @@ class EvidenceCategory(StrEnum):
     Grows as detectors and the semantic analyzer are implemented (Phases 2 and
     8). The initial set matches the categories named in ARCHITECTURE.md §6. Kept
     a closed enum for now (docs/DECISIONS.md D-0002).
+
+    ``SUSPICIOUS_INTENT`` and ``CONTEXTUAL_SENSITIVITY`` were added in Phase 8
+    for the semantic analyzer (docs/DECISIONS.md D-0004): they cover findings a
+    deterministic detector cannot express structurally (e.g. "this action's
+    apparent purpose looks unsafe given the surrounding context") and that do
+    not fit an existing member. ``PROMPT_INJECTION`` (below) already covered the
+    semantic analyzer's other named signal, so it is reused unchanged.
     """
 
     CREDENTIAL = "CREDENTIAL"
@@ -124,6 +131,8 @@ class EvidenceCategory(StrEnum):
     EXTERNAL_DATA_TRANSFER = "EXTERNAL_DATA_TRANSFER"
     EXCESSIVE_CAPABILITY = "EXCESSIVE_CAPABILITY"
     PROMPT_INJECTION = "PROMPT_INJECTION"
+    SUSPICIOUS_INTENT = "SUSPICIOUS_INTENT"
+    CONTEXTUAL_SENSITIVITY = "CONTEXTUAL_SENSITIVITY"
 
 
 class EvidenceSource(StrEnum):

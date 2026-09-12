@@ -169,6 +169,29 @@ _ASK_RULES: tuple[PolicyRule, ...] = (
         match=RuleMatch(any_category=frozenset({EvidenceCategory.PROMPT_INJECTION})),
         rationale=("analysis flagged possible prompt-injection content",),
     ),
+    # Phase 8: the semantic analyzer's other two signal categories. Each gets
+    # its own inspectable rule (rather than relying on the conservative default)
+    # for the same reason ASK.PROMPT_INJECTION_SUSPECTED does.
+    PolicyRule(
+        rule_id="ASK.SUSPICIOUS_INTENT_DETECTED",
+        outcome=DecisionOutcome.ASK,
+        match=RuleMatch(any_category=frozenset({EvidenceCategory.SUSPICIOUS_INTENT})),
+        rationale=(
+            "semantic analysis judged the action's apparent intent suspicious; "
+            "a human must review",
+        ),
+    ),
+    PolicyRule(
+        rule_id="ASK.CONTEXTUAL_SENSITIVITY_DETECTED",
+        outcome=DecisionOutcome.ASK,
+        match=RuleMatch(
+            any_category=frozenset({EvidenceCategory.CONTEXTUAL_SENSITIVITY})
+        ),
+        rationale=(
+            "semantic analysis judged the surrounding context sensitive beyond "
+            "what deterministic classification captured; a human must review",
+        ),
+    ),
     # Backstops: guarantee a high-impact event never falls through to a silent
     # allow when semantic analysis did not contribute. These overlap the
     # specific rules above under the default set; they matter if those are ever
